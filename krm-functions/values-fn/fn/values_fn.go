@@ -1,9 +1,7 @@
 package fn
 
 import (
-	"archive/tar"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
@@ -23,22 +21,12 @@ const (
 )
 
 func Process(rl *fn.ResourceList) (bool, error) {
-	values, err := extractValuesFromValuesDirectly(HelmValuesPath)
-	if err != nil {
-		return false, err
-	}
-	replicaCountValue, exists := values["replicaCount"]
-	if !exists {
-		return false, fmt.Errorf("replicaCount key not found in values.yaml")
-	}
-	fmt.Println("Replica Count:", replicaCountValue)
-	fmt.Println("*********************************************************")
-	//var err error
+	var err error
 	err = modifyAndSaveValues(HelmValuesPath, "replicaCount", 4)
 	if err != nil {
 		return false, fmt.Errorf("replicaCount key not found in values.yaml")
 	}
-	fmt.Println("*********************************************************")
+
 	valuesStr, err := extractValuesAsString(HelmValuesPath, ModifiedFileName)
 	if err != nil {
 		return false, err
@@ -105,46 +93,15 @@ func extractValuesFromValuesDirectly(packagePath string) (map[string]interface{}
 
 	return values, nil
 }
-func extractValuesFromHelmPackage(packagePath string) (map[string]interface{}, error) {
-	file, err := os.Open(packagePath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	tarReader := tar.NewReader(file)
-
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if header.Name == ValuesFileName {
-			var values map[string]interface{}
-			decoder := yaml.NewDecoder(tarReader)
-			err := decoder.Decode(&values)
-			if err != nil {
-				return nil, err
-			}
-			return values, nil
-		}
-	}
-
-	return nil, fmt.Errorf("values.yaml not found in Helm package")
-}
 func extractValuesAsString(packagePath string, fileName string) (string, error) {
 	filePath := filepath.Join(packagePath, fileName)
 
-	fileContent, err := os.ReadFile(filePath)
+	filePath = filepath.Clean(filePath)
+	file, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read %s: %v", fileName, err)
 	}
-
-	return string(fileContent), nil
+	return string(file), nil
 }
 func modifyAndSaveValues(packagePath string, key string, newValue interface{}) error {
 	// Step 1: Read the YAML file into a map
@@ -164,7 +121,7 @@ func modifyAndSaveValues(packagePath string, key string, newValue interface{}) e
 
 	// Step 4: Save the encoded YAML to the file
 	newFilePath := filepath.Join(packagePath, ModifiedFileName)
-	err = os.WriteFile(newFilePath, yamlBytes, 0644)
+	err = os.WriteFile(newFilePath, yamlBytes, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write modified YAML to file: %v", err)
 	}

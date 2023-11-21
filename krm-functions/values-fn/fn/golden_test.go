@@ -20,12 +20,12 @@ import (
 	"testing"
 
 	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn"
+	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn/testhelpers"
 )
 
 const TestDataPath = "testdata"
 
 func TestFunction(t *testing.T) {
-	if err := fn.AsMain(fn.ResourceListProcessorFunc(Process)); err != nil {
-		t.FailNow()
-	}
+	fnRunner := fn.ResourceListProcessorFunc(Process)
+	testhelpers.RunGoldenTests(t, TestDataPath, fnRunner)
 }
